@@ -231,6 +231,14 @@ func pullImageProgress(ctx context.Context, out io.ReadCloser, notificationType 
 		// reduce the event send frequency
 		throttler.ThrottleFunc(func() {
 			go func(progress int) {
+				// ensure progress is in [0, 100]
+				if progress < 0 {
+					progress = 0
+				}
+				if progress > 100 {
+					progress = 100
+				}
+
 				PublishEventWrapper(ctx, common.EventTypeAppInstallProgress, map[string]string{
 					common.PropertyTypeAppProgress.Name: fmt.Sprintf("%d", progress),
 				})

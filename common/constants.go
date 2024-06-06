@@ -8,9 +8,10 @@ const (
 
 	ComposeAppAuthorCasaOSTeam = "CasaOS Team"
 
-	ComposeExtensionNameXCasaOS            = "x-casaos"
-	ComposeExtensionPropertyNameStoreAppID = "store_app_id"
-	ComposeExtensionPropertyNameTitle      = "title"
+	ComposeExtensionNameXCasaOS                = "x-casaos"
+	ComposeExtensionPropertyNameStoreAppID     = "store_app_id"
+	ComposeExtensionPropertyNameTitle          = "title"
+	ComposeExtensionPropertyNameIsUncontrolled = "is_uncontrolled"
 
 	ComposeYAMLFileName = "docker-compose.yml"
 
@@ -29,3 +30,6 @@ const (
 	CategoryListFileName  = "category-list.json"
 	RecommendListFileName = "recommend-list.json"
 )
+
+// the tags can add more. like "latest", "stable", "edge", "beta", "alpha"
+var NeedCheckDigestTags = []string{"latest"}

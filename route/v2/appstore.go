@@ -2,52 +2,26 @@ package v2
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"math/rand"
 	"net/http"
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/IceWhaleTech/CasaOS-AppManagement/codegen"
 	"github.com/IceWhaleTech/CasaOS-AppManagement/common"
 	"github.com/IceWhaleTech/CasaOS-AppManagement/pkg/config"
+	"github.com/IceWhaleTech/CasaOS-AppManagement/pkg/docker"
 	"github.com/IceWhaleTech/CasaOS-AppManagement/service"
 	"github.com/IceWhaleTech/CasaOS-Common/utils"
 	"github.com/IceWhaleTech/CasaOS-Common/utils/logger"
-	"github.com/compose-spec/compose-go/types"
 	"github.com/labstack/echo/v4"
 	"github.com/samber/lo"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 )
 
-var (
-	letters       = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	digits        = "0123456789"
-	specialChars  = "!@#$%^&*()"
-	defaultLength = 12
-)
-
-func generatePassword(length int, includeDigits, includeSpecialChars bool) string {
-	rand.Seed(time.Now().UnixNano())
-
-	chars := letters
-	if includeDigits {
-		chars += digits
-	}
-	if includeSpecialChars {
-		chars += specialChars
-	}
-
-	pw := make([]byte, length)
-	for i := range pw {
-		pw[i] = chars[rand.Intn(len(chars))]
-	}
-
-	return string(pw)
-}
 func (a *AppManagement) AppStoreList(ctx echo.Context) error {
 	appStoreList := service.MyService.AppStoreManagement().AppStoreList()
 
@@ -56,36 +30,62 @@ func (a *AppManagement) AppStoreList(ctx echo.Context) error {
 	})
 }
 
+// the method should be deprecated
+// but it be used by CasaOS
 func (a *AppManagement) RegisterAppStore(ctx echo.Context, params codegen.RegisterAppStoreParams) error {
 	if params.Url == nil || *params.Url == "" {
 		message := "appstore url is required"
 		return ctx.JSON(http.StatusBadRequest, codegen.ResponseBadRequest{Message: &message})
 	}
 
-	isExist := lo.ContainsBy(service.MyService.AppStoreManagement().AppStoreList(), func(appstore codegen.AppStoreMetadata) bool {
-		return appstore.URL != nil && strings.ToLower(*appstore.URL) == strings.ToLower(*params.Url)
-	})
-
-	if isExist {
-		message := "appstore is already registered"
-		return ctx.JSON(http.StatusOK, codegen.AppStoreRegisterOK{Message: &message})
-	}
-
 	backgroundCtx := common.WithProperties(context.Background(), PropertiesFromQueryParams(ctx))
 
 	if err := service.MyService.AppStoreManagement().RegisterAppStore(backgroundCtx, *params.Url); err != nil {
 		message := err.Error()
-		if err == service.ErrNotAppStore {
-			return ctx.JSON(http.StatusBadRequest, codegen.ResponseBadRequest{Message: &message})
-		}
 
-		return ctx.JSON(http.StatusInternalServerError, codegen.ResponseInternalServerError{Message: &message})
+		if err != nil {
+			switch err {
+			case service.ErrAppStoreSourceExists:
+				return ctx.JSON(http.StatusConflict, codegen.ResponseConflict{Message: &message})
+			case service.ErrNotAppStore:
+				return ctx.JSON(http.StatusBadRequest, codegen.ResponseBadRequest{Message: &message})
+			default:
+				return ctx.JSON(http.StatusInternalServerError, codegen.ResponseInternalServerError{Message: &message})
+			}
+		}
 	}
 
 	logFilepath := filepath.Join(config.AppInfo.LogPath, fmt.Sprintf("%s.%s", config.AppInfo.LogSaveName, config.AppInfo.LogFileExt))
 	message := fmt.Sprintf("trying to register app store asynchronously - see %s for any errors.", logFilepath)
 	return ctx.JSON(http.StatusOK, codegen.AppStoreRegisterOK{
 		Message: &message,
+	})
+}
+
+func (a *AppManagement) RegisterAppStoreSync(ctx echo.Context, params codegen.RegisterAppStoreSyncParams) error {
+	if params.Url == nil || *params.Url == "" {
+		message := "appstore url is required"
+		return ctx.JSON(http.StatusBadRequest, codegen.ResponseBadRequest{Message: &message})
+	}
+
+	backgroundCtx := common.WithProperties(context.Background(), PropertiesFromQueryParams(ctx))
+
+	err := service.MyService.AppStoreManagement().RegisterAppStoreSync(backgroundCtx, *params.Url)
+	if err != nil {
+		message := err.Error()
+
+		switch err {
+		case service.ErrAppStoreSourceExists:
+			return ctx.JSON(http.StatusConflict, codegen.ResponseConflict{Message: &message})
+		case service.ErrNotAppStore:
+			return ctx.JSON(http.StatusBadRequest, codegen.ResponseBadRequest{Message: &message})
+		default:
+			return ctx.JSON(http.StatusInternalServerError, codegen.ResponseInternalServerError{Message: &message})
+		}
+	}
+
+	return ctx.JSON(http.StatusOK, codegen.AppStoreRegisterOK{
+		Message: utils.Ptr("app store is registered."),
 	})
 }
 
@@ -113,7 +113,7 @@ func (a *AppManagement) UnregisterAppStore(ctx echo.Context, id codegen.AppStore
 }
 
 func (a *AppManagement) ComposeAppStoreInfoList(ctx echo.Context, params codegen.ComposeAppStoreInfoListParams) error {
-	catalog, err := service.MyService.V2AppStore().Catalog()
+	catalog, err := service.MyService.AppStoreManagement().Catalog()
 	if err != nil {
 		message := err.Error()
 		logger.Error("failed to get catalog", zap.Error(err))
@@ -131,7 +131,7 @@ func (a *AppManagement) ComposeAppStoreInfoList(ctx echo.Context, params codegen
 
 	if params.Recommend != nil && *params.Recommend {
 		// recommend
-		recommendedList, err := service.MyService.V2AppStore().Recommend()
+		recommendedList, err := service.MyService.AppStoreManagement().Recommend()
 		if err != nil {
 			message := err.Error()
 			logger.Error("failed to get recommend list", zap.Error(err))
@@ -185,11 +185,9 @@ func (a *AppManagement) ComposeAppStoreInfoList(ctx echo.Context, params codegen
 
 	return ctx.JSON(http.StatusOK, codegen.ComposeAppStoreInfoListsOK{Data: data})
 }
-func StringPtr(s string) *string {
-	return &s
-}
+
 func (a *AppManagement) ComposeAppStoreInfo(ctx echo.Context, id codegen.StoreAppIDString) error {
-	composeApp, err := service.MyService.V2AppStore().ComposeApp(id)
+	composeApp, err := service.MyService.AppStoreManagement().ComposeApp(id)
 	if err != nil {
 		message := err.Error()
 		return ctx.JSON(http.StatusInternalServerError, codegen.ResponseInternalServerError{Message: &message})
@@ -212,80 +210,67 @@ func (a *AppManagement) ComposeAppStoreInfo(ctx echo.Context, id codegen.StoreAp
 		Data: storeInfo,
 	})
 }
-func replaceDynamicPasswordInServiceConfig(serviceConfig *types.ServiceConfig, password string) error {
-	// Example: Replace $DynamicPassword in the Environment field
-	if serviceConfig.Environment != nil {
-		for key, value := range serviceConfig.Environment {
-			if strings.Contains(*value, "$DynamicPassword") {
-				replacedValue := strings.ReplaceAll(*value, "$DynamicPassword", password)
-				serviceConfig.Environment[key] = &replacedValue
-			}
-		}
+
+func (a *AppManagement) ComposeAppMainStableTag(ctx echo.Context, id codegen.StoreAppIDString) error {
+	composeApp, err := service.MyService.AppStoreManagement().ComposeApp(id)
+	if err != nil {
+		message := err.Error()
+		return ctx.JSON(http.StatusInternalServerError, codegen.ResponseInternalServerError{Message: &message})
 	}
-	// Add more logic here to handle other fields in ServiceConfig
-	return nil
+
+	if composeApp == nil {
+		return ctx.JSON(http.StatusNotFound, codegen.ResponseNotFound{
+			Message: utils.Ptr("app not found"),
+		})
+	}
+
+	mainService, err := composeApp.MainService()
+	if err != nil {
+		return ctx.JSON(http.StatusInternalServerError, codegen.ResponseInternalServerError{
+			Message: utils.Ptr(err.Error()),
+		})
+	}
+
+	_, tag := docker.ExtractImageAndTag(mainService.Image)
+
+	return ctx.JSON(http.StatusOK, codegen.ComposeAppStoreTagOK{
+		Data: &codegen.ComposeAppStoreTag{
+			Tag: tag,
+		},
+	})
 }
-func replaceDynamicPasswordInExtensions(extMap map[string]interface{}, password string) error {
-	for key, value := range extMap {
-		switch v := value.(type) {
-		case string:
-			if strings.Contains(v, "$DynamicPassword") {
-				replacedValue := strings.ReplaceAll(v, "$DynamicPassword", password)
-				extMap[key] = replacedValue
-			}
-		case map[string]interface{}:
-			err := replaceDynamicPasswordInExtensions(v, password)
-			if err != nil {
-				return err
-			}
-		case []interface{}:
-			for i, item := range v {
-				if strVal, ok := item.(string); ok {
-					if strings.Contains(strVal, "$DynamicPassword") {
-						replacedValue := strings.ReplaceAll(strVal, "$DynamicPassword", password)
-						v[i] = replacedValue
-					}
-				}
-				if mapItem, ok := item.(map[string]interface{}); ok {
-					if err := replaceDynamicPasswordInExtensions(mapItem, password); err != nil {
-						return err
-					}
-				}
-			}
-		}
+
+func (a *AppManagement) ComposeAppServiceStableTag(ctx echo.Context, id codegen.StoreAppIDString, serviceName string) error {
+	composeApp, err := service.MyService.AppStoreManagement().ComposeApp(id)
+	if err != nil {
+		message := err.Error()
+		return ctx.JSON(http.StatusInternalServerError, codegen.ResponseInternalServerError{Message: &message})
 	}
-	return nil
+
+	if composeApp == nil {
+		return ctx.JSON(http.StatusNotFound, codegen.ResponseNotFound{
+			Message: utils.Ptr("app not found"),
+		})
+	}
+
+	service := composeApp.App(serviceName)
+	if service == nil {
+		return ctx.JSON(http.StatusInternalServerError, codegen.ResponseInternalServerError{
+			Message: utils.Ptr("service not found"),
+		})
+	}
+
+	_, tag := docker.ExtractImageAndTag(service.Image)
+
+	return ctx.JSON(http.StatusOK, codegen.ComposeAppStoreTagOK{
+		Data: &codegen.ComposeAppStoreTag{
+			Tag: tag,
+		},
+	})
 }
-func replaceDynamicPasswordInComposeApp(composeApp *service.ComposeApp, password string) error {
-	// Example: Replace $DynamicPassword in the Services field
-	if composeApp.Services != nil {
-		for _, serviceConfig := range composeApp.Services {
-			err := replaceDynamicPasswordInServiceConfig(&serviceConfig, password)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	// Handle composeApp.Extensions
-	if composeApp.Extensions != nil {
-		for key, value := range composeApp.Extensions {
-			if key == common.ComposeExtensionNameXCasaOS {
-				extMap, ok := value.(map[string]interface{})
-				if !ok {
-					return fmt.Errorf("unexpected type for x-casaos extension")
-				}
-				err := replaceDynamicPasswordInExtensions(extMap, password)
-				if err != nil {
-					return err
-				}
-			}
-		}
-	}
-	// Add more logic here to handle other fields in ComposeApp
-	return nil
-}
+
 func (a *AppManagement) ComposeApp(ctx echo.Context, id codegen.StoreAppIDString) error {
-	composeApp, err := service.MyService.V2AppStore().ComposeApp(id)
+	composeApp, err := service.MyService.AppStoreManagement().ComposeApp(id)
 	if err != nil {
 		message := err.Error()
 		return ctx.JSON(http.StatusInternalServerError, codegen.ResponseInternalServerError{Message: &message})
@@ -298,10 +283,6 @@ func (a *AppManagement) ComposeApp(ctx echo.Context, id codegen.StoreAppIDString
 	}
 
 	accept := ctx.Request().Header.Get(echo.HeaderAccept)
-	// 5.5 Before install generate random password
-	password := generatePassword(12, true, true)
-	replaceDynamicPasswordInComposeApp(composeApp, password)
-
 	if accept == common.MIMEApplicationYAML {
 		yaml, err := yaml.Marshal(composeApp)
 		if err != nil {
@@ -313,6 +294,7 @@ func (a *AppManagement) ComposeApp(ctx echo.Context, id codegen.StoreAppIDString
 
 		return ctx.String(http.StatusOK, string(yaml))
 	}
+
 	storeInfo, err := composeApp.StoreInfo(false)
 	if err != nil {
 		message := err.Error()
@@ -382,7 +364,7 @@ func FilterCatalogByCategory(catalog map[string]*service.ComposeApp, category st
 			return false
 		}
 
-		return strings.ToLower(storeInfo.Category) == strings.ToLower(category)
+		return strings.EqualFold(storeInfo.Category, category)
 	})
 }
 
@@ -396,13 +378,81 @@ func FilterCatalogByAuthorType(catalog map[string]*service.ComposeApp, authorTyp
 		return map[string]*service.ComposeApp{}
 	}
 
-	return lo.PickBy(catalog, func(storeAppID string, composeApp *service.ComposeApp) bool {
+	return lo.PickBy(catalog, func(_ string, composeApp *service.ComposeApp) bool {
 		return composeApp.AuthorType() == authorType
 	})
 }
 
 func FilterCatalogByAppStoreID(catalog map[string]*service.ComposeApp, appStoreIDs []string) map[string]*service.ComposeApp {
-	return lo.PickBy(catalog, func(storeAppID string, composeApp *service.ComposeApp) bool {
+	return lo.PickBy(catalog, func(storeAppID string, _ *service.ComposeApp) bool {
 		return lo.Contains(appStoreIDs, storeAppID)
+	})
+}
+
+func (a *AppManagement) UpgradableAppList(ctx echo.Context) error {
+	composeApps, err := service.MyService.Compose().List(ctx.Request().Context())
+
+	var upgradableAppList []codegen.UpgradableAppInfo = []codegen.UpgradableAppInfo{}
+	if err != nil {
+		message := err.Error()
+		return ctx.JSON(http.StatusInternalServerError, codegen.ResponseInternalServerError{Message: &message})
+	}
+	for id, composeApp := range composeApps {
+		if composeApp == nil {
+			continue
+		}
+
+		storeInfo, err := composeApp.StoreInfo(true)
+		if err != nil {
+			logger.Error("failed to get store info", zap.Error(err), zap.String("appStoreID", id))
+			continue
+		}
+
+		title, err := json.Marshal(storeInfo.Title)
+		if err != nil {
+			title = []byte("unknown")
+		}
+
+		storeComposeApp, err := service.MyService.AppStoreManagement().ComposeApp(id)
+		if err != nil || storeComposeApp == nil {
+			logger.Error("failed to get compose app", zap.Error(err), zap.String("appStoreID", id))
+			continue
+		}
+		tag, err := storeComposeApp.MainTag()
+		if err != nil {
+			// TODO
+			logger.Error("failed to get compose app main tag", zap.Error(err), zap.String("appStoreID", id))
+			continue
+		}
+
+		status := codegen.Idle
+		if service.MyService.AppStoreManagement().IsUpdating(composeApp.Name) {
+			status = codegen.Updating
+		}
+
+		// not change the main tag
+		mainTag, err := composeApp.MainTag()
+		if err != nil {
+			logger.Error("failed to get main tag", zap.Error(err), zap.String("name", composeApp.Name))
+			continue
+		}
+
+		targetTag := tag
+		if lo.Contains(common.NeedCheckDigestTags, mainTag) {
+			targetTag = mainTag
+		}
+
+		if service.MyService.AppStoreManagement().IsUpdateAvailable(composeApp) {
+			upgradableAppList = append(upgradableAppList, codegen.UpgradableAppInfo{
+				Title:      string(title),
+				Version:    targetTag,
+				StoreAppID: lo.ToPtr(id),
+				Status:     status,
+				Icon:       storeInfo.Icon,
+			})
+		}
+	}
+	return ctx.JSON(http.StatusOK, codegen.UpgradableAppListOK{
+		Data: &upgradableAppList,
 	})
 }

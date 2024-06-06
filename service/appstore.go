@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/IceWhaleTech/CasaOS-AppManagement/codegen"
 	"github.com/IceWhaleTech/CasaOS-AppManagement/common"
@@ -61,9 +62,6 @@ func (s *appStore) CategoryMap() (map[string]codegen.CategoryInfo, error) {
 	}
 
 	categoryMap := LoadCategoryMap(storeRoot)
-	if err != nil {
-		return nil, err
-	}
 
 	s.categoryMap = categoryMap
 
@@ -80,16 +78,20 @@ func (s *appStore) UpdateCatalog() error {
 	// check wether the zip package size change
 	// if not, skip the update
 	{
+		// timeout 5s
+		http.DefaultClient.Timeout = 5 * time.Second
 		res, err := http.Head(s.url)
 		if err != nil {
 			return err
 		}
+		if res.StatusCode != http.StatusOK {
+			return fmt.Errorf("failed to get appstore size, status code: %d", res.StatusCode)
+		}
 		if res.ContentLength == s.lastAPPStoreSize {
 			logger.Info("appstore size not changed", zap.String("url", s.url))
 			return nil
-		} else {
-			logger.Info("appstore size changed, update app store", zap.String("url", s.url))
 		}
+		logger.Info("appstore size changed, update app store", zap.String("url", s.url))
 
 		defer func() {
 			if isSuccessful {

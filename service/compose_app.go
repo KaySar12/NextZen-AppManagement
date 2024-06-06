@@ -48,7 +48,14 @@ func (a *ComposeApp) StoreInfo(includeApps bool) (*codegen.ComposeAppStoreInfo, 
 
 	var storeInfo codegen.ComposeAppStoreInfo
 	if err := loader.Transform(ex, &storeInfo); err != nil {
+		logger.Error("Transform store info fail", zap.Error(err))
 		return nil, err
+	}
+
+	// TODO refactor this with ComposeAppWithStoreInfo
+	isUncontrolled, ok := a.Extensions[common.ComposeExtensionNameXCasaOS].(map[string]interface{})[common.ComposeExtensionPropertyNameIsUncontrolled].(bool)
+	if ok {
+		storeInfo.IsUncontrolled = &isUncontrolled
 	}
 
 	// locate main app
@@ -92,11 +99,10 @@ func (a *ComposeApp) AuthorType() codegen.StoreAppAuthorType {
 		return codegen.Unknown
 	}
 
-	if strings.ToLower(storeInfo.Author) == strings.ToLower(storeInfo.Developer) {
+	if strings.EqualFold(storeInfo.Author, storeInfo.Developer) {
 		return codegen.Official
 	}
-
-	if strings.ToLower(storeInfo.Author) == strings.ToLower(common.ComposeAppAuthorCasaOSTeam) {
+	if strings.EqualFold(storeInfo.Author, common.ComposeAppAuthorCasaOSTeam) {
 		return codegen.ByCasaos
 	}
 
@@ -162,75 +168,6 @@ func (a *ComposeApp) SetTitle(title, lang string) {
 	}
 }
 
-func (a *ComposeApp) IsUpdateAvailable() bool {
-	storeInfo, err := a.StoreInfo(false)
-	if err != nil {
-		logger.Error("failed to get store info of compose app, thus no update available", zap.Error(err))
-		return false
-	}
-
-	if storeInfo == nil || storeInfo.StoreAppID == nil || *storeInfo.StoreAppID == "" {
-		logger.Error("store info of compose app is not valid, thus no update available")
-		return false
-	}
-
-	storeComposeApp, err := MyService.V2AppStore().ComposeApp(*storeInfo.StoreAppID)
-	if err != nil {
-		logger.Error("failed to get store compose app, thus no update available", zap.Error(err))
-		return false
-	}
-
-	if storeComposeApp == nil {
-		logger.Error("store compose app not found, thus no update available", zap.String("storeAppID", *storeInfo.StoreAppID))
-		return false
-	}
-
-	return a.IsUpdateAvailableWith(storeComposeApp)
-}
-
-func (a *ComposeApp) IsUpdateAvailableWith(storeComposeApp *ComposeApp) bool {
-	storeComposeAppStoreInfo, err := storeComposeApp.StoreInfo(false)
-	if err != nil || storeComposeAppStoreInfo == nil {
-		logger.Error("failed to get store info of store compose app, thus no update available", zap.Error(err))
-		return false
-	}
-
-	mainAppName := *storeComposeAppStoreInfo.Main
-
-	mainApp := a.App(mainAppName)
-	if mainApp == nil {
-		logger.Error("main app not found in local compose app, thus no update available", zap.String("name", mainAppName))
-		return false
-	}
-
-	mainAppImage, mainAppTag := docker.ExtractImageAndTag(mainApp.Image)
-
-	if mainAppTag == "latest" {
-		logger.Info("main app image tag is latest, thus no update available", zap.String("image", mainApp.Image))
-		return false
-	}
-
-	storeMainApp := storeComposeApp.App(mainAppName)
-	if storeMainApp == nil {
-		logger.Error("main app not found in store compose app, thus no update available", zap.String("name", mainAppName))
-		return false
-	}
-
-	storeMainAppImage, storeMainAppTag := docker.ExtractImageAndTag(storeMainApp.Image)
-
-	if mainAppImage != storeMainAppImage {
-		logger.Error("main app image not match for local app and store app, thus no update available", zap.String("local", mainApp.Image), zap.String("store", storeMainApp.Image))
-		return false
-	}
-
-	if mainAppTag == storeMainAppTag {
-		return false
-	}
-
-	logger.Info("main apps of local app and store app have different image tag, thus update is available", zap.String("local", mainApp.Image), zap.String("store", storeMainApp.Image))
-	return true
-}
-
 func (a *ComposeApp) Update(ctx context.Context) error {
 	if len(a.ComposeFiles) <= 0 {
 		return ErrComposeFileNotFound
@@ -249,7 +186,7 @@ func (a *ComposeApp) Update(ctx context.Context) error {
 		return ErrStoreInfoNotFound
 	}
 
-	storeComposeApp, err := MyService.V2AppStore().ComposeApp(*storeInfo.StoreAppID)
+	storeComposeApp, err := MyService.AppStoreManagement().ComposeApp(*storeInfo.StoreAppID)
 	if err != nil {
 		return err
 	}
@@ -274,8 +211,18 @@ func (a *ComposeApp) Update(ctx context.Context) error {
 
 	for _, service := range storeComposeApp.Services {
 		localComposeAppService := a.App(service.Name)
-		localComposeAppService.Image = service.Image
+
+		for _, tag := range common.NeedCheckDigestTags {
+			if strings.HasSuffix(service.Image, tag) {
+				// keep latest
+			} else {
+				localComposeAppService.Image = service.Image
+			}
+		}
 	}
+
+	// the code is need by stable diffusion.
+	removeRuntime(a)
 
 	newComposeYAML, err := yaml.Marshal(a)
 	if err != nil {
@@ -295,6 +242,9 @@ func (a *ComposeApp) Update(ctx context.Context) error {
 
 		defer PublishEventWrapper(ctx, common.EventTypeAppUpdateEnd, nil)
 
+		MyService.AppStoreManagement().StartUpgrade(a.Name)
+		defer MyService.AppStoreManagement().FinishUpgrade(a.Name)
+
 		if err := a.PullAndApply(ctx, newComposeYAML); err != nil {
 			go PublishEventWrapper(ctx, common.EventTypeAppUpdateError, map[string]string{
 				common.PropertyTypeMessage.Name: err.Error(),
@@ -307,6 +257,7 @@ func (a *ComposeApp) Update(ctx context.Context) error {
 	return nil
 }
 
+// TODO rename the function to service and add error return value
 func (a *ComposeApp) App(name string) *App {
 	if name == "" {
 		return nil
@@ -329,6 +280,29 @@ func (a *ComposeApp) Apps() map[string]*App {
 	}
 
 	return apps
+}
+
+func (a *ComposeApp) MainService() (*App, error) {
+	storeInfo, err := a.StoreInfo(false)
+	if err != nil {
+		return nil, err
+	}
+
+	if storeInfo.Main == nil || *storeInfo.Main == "" {
+		return nil, ErrMainServiceNotSpecified
+	}
+
+	return a.App(*storeInfo.Main), nil
+}
+
+func (a *ComposeApp) MainTag() (string, error) {
+	mainService, err := a.MainService()
+	if err != nil {
+		return "", err
+	}
+	_, newTag := docker.ExtractImageAndTag(mainService.Image)
+
+	return newTag, nil
 }
 
 func (a *ComposeApp) Containers(ctx context.Context) (map[string][]api.ContainerSummary, error) {
@@ -384,7 +358,7 @@ func (a *ComposeApp) Pull(ctx context.Context) error {
 	return nil
 }
 
-func injectEnvVariableToComposeApp(a *ComposeApp) {
+func (a *ComposeApp) injectEnvVariableToComposeApp() {
 	for _, service := range a.Services {
 		for k, v := range config.Global {
 			// if there is same name var declared in environment in compose yaml
@@ -397,7 +371,7 @@ func injectEnvVariableToComposeApp(a *ComposeApp) {
 }
 
 func (a *ComposeApp) Up(ctx context.Context, service api.Service) error {
-	injectEnvVariableToComposeApp(a)
+	a.injectEnvVariableToComposeApp()
 
 	if err := service.Up(ctx, (*codegen.ComposeApp)(a), api.UpOptions{
 		Start: api.StartOptions{
@@ -510,7 +484,7 @@ func (a *ComposeApp) PullAndApply(ctx context.Context, newComposeYAML []byte) er
 }
 
 func (a *ComposeApp) Create(ctx context.Context, options api.CreateOptions, service api.Service) error {
-	injectEnvVariableToComposeApp(a)
+	a.injectEnvVariableToComposeApp()
 	return service.Create(ctx, (*codegen.ComposeApp)(a), api.CreateOptions{})
 }
 
@@ -950,13 +924,29 @@ func LoadComposeAppFromConfigFile(appID string, configFile string) (*ComposeApp,
 	return (*ComposeApp)(project), err
 }
 
+var gpuCache *([]external.GPUInfo) = nil
+
 func removeRuntime(a *ComposeApp) {
-	for i := range a.Services {
-		a.Services[i].Runtime = ""
+	if config.RemoveRuntimeIfNoNvidiaGPUFlag {
+
+		// if gpuCache is nil, it means it is first time fetching gpu info
+		if gpuCache == nil {
+			value, err := external.GPUInfoList()
+			if err != nil {
+				gpuCache = &([]external.GPUInfo{})
+			} else {
+				gpuCache = &value
+			}
+
+			// without nvidia-smi 	// no gpu or first time fetching gpu info failed
+		}
+		if len(*gpuCache) == 0 {
+			for i := range a.Services {
+				a.Services[i].Runtime = ""
+			}
+		}
 	}
 }
-
-var gpuCache *([]external.GPUInfo) = nil
 
 func NewComposeAppFromYAML(yaml []byte, skipInterpolation, skipValidation bool) (*ComposeApp, error) {
 	tmpWorkingDir, err := os.MkdirTemp("", "casaos-compose-app-*")
@@ -967,7 +957,7 @@ func NewComposeAppFromYAML(yaml []byte, skipInterpolation, skipValidation bool) 
 
 	// the WEBUI_PORT interpolate will tiger twice. In `pulished` and `port-map`.
 	// So we need to promise multiple WEBUI_PORT interpolate is a same value.
-	port, err := port.GetAvailablePort("tcp")
+	port, _ := port.GetAvailablePort("tcp")
 
 	project, err := loader.Load(
 		types.ConfigDetails{
@@ -1038,22 +1028,7 @@ func NewComposeAppFromYAML(yaml []byte, skipInterpolation, skipValidation bool) 
 		composeApp.SetTitle(composeApp.Name, common.DefaultLanguage)
 	}
 
-	if config.RemoveRuntimeIfNoNvidiaGPUFlag {
-		// if gpuCache is nil, it means it is first time fetching gpu info
-		if gpuCache == nil {
-			value, err := external.GPUInfoList()
-			if err != nil {
-				gpuCache = &([]external.GPUInfo{})
-			} else {
-				gpuCache = &value
-			}
-		}
-
-		// without nvidia-smi 	// no gpu or first time fetching gpu info failed
-		if err != nil || len(*gpuCache) == 0 {
-			removeRuntime(composeApp)
-		}
-	}
+	removeRuntime(composeApp)
 
 	// pass icon information to v1 label for backward compatibility, because we are
 	// still using `func getContainerStats()` from `container.go` to get container stats
@@ -1080,4 +1055,20 @@ func getNameFrom(composeYAML []byte) string {
 	}
 
 	return baseStructure.Name
+}
+
+func (a *ComposeApp) SetUncontrolled(uncontrolled bool) error {
+	xCasaos := a.Extensions[common.ComposeExtensionNameXCasaOS]
+	xCasaosMap, ok := xCasaos.(map[string]interface{})
+
+	// set to controlled app
+	if !ok {
+		logger.Error("failed to get map compose app extensions", zap.String("composeAppID", a.Name))
+		return ErrComposeExtensionNameXCasaOSNotFound
+	} else {
+		xCasaosMap[common.ComposeExtensionPropertyNameIsUncontrolled] = uncontrolled
+		a.Extensions[common.ComposeExtensionNameXCasaOS] = xCasaosMap
+	}
+
+	return nil
 }

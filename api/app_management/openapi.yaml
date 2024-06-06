@@ -225,7 +225,7 @@ paths:
           $ref: "#/components/responses/ResponseNotFound"
         "500":
           $ref: "#/components/responses/ResponseInternalServerError"
-
+     
   /appstore:
     get:
       summary: Get the list of registered app stores
@@ -254,6 +254,8 @@ paths:
           $ref: "#/components/responses/AppStoreRegisterOK"
         "400":
           $ref: "#/components/responses/ResponseBadRequest"
+        "409":
+          $ref: "#/components/responses/ResponseConflict"
         "500":
           $ref: "#/components/responses/ResponseInternalServerError"
 
@@ -304,6 +306,21 @@ paths:
           $ref: "#/components/responses/ComposeAppStoreInfoListsOK"
         "500":
           $ref: "#/components/responses/ResponseInternalServerError"
+  
+  /apps/upgradable:
+    get:
+      summary: Get the list of upgradable apps from installed app.
+      description: |
+        (TODO)
+      operationId: upgradableAppList
+      tags:
+        - AppStore methods
+      responses:
+        "200":
+          $ref: "#/components/responses/UpgradableAppListOK"
+        "500":
+          $ref: "#/components/responses/ResponseInternalServerError"
+
 
   /apps/{id}:
     get:
@@ -324,6 +341,49 @@ paths:
           $ref: "#/components/responses/ResponseNotFound"
         "500":
           $ref: "#/components/responses/ResponseInternalServerError"
+
+  /apps/{id}/stable:
+    get:
+      summary: Get app stable version from registered app stores
+      description: |
+        Get stable version(Official Store Tag) of main service of specific compose app.
+      operationId: composeAppMainStableTag
+      tags:
+        - AppStore methods
+      parameters:
+        - $ref: "#/components/parameters/StoreAppIDString"
+      responses:
+        "200":
+          $ref: "#/components/responses/ComposeAppStoreTagOK"
+        "404":
+          $ref: "#/components/responses/ResponseNotFound"
+        "500":
+          $ref: "#/components/responses/ResponseInternalServerError"
+
+  /apps/{id}/stable/{serviceName}:
+    get:
+      summary: Get server of app stable version from registered app stores
+      description: |
+        Get stable version(Official Store Tag) of main service of specific compose app.
+      operationId: composeAppServiceStableTag
+      tags:
+        - AppStore methods
+      parameters:
+        - $ref: "#/components/parameters/StoreAppIDString"
+        - name: serviceName
+          in: path
+          description: Service name of the compose app
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/ComposeAppStoreTagOK"
+        "404":
+          $ref: "#/components/responses/ResponseNotFound"
+        "500":
+          $ref: "#/components/responses/ResponseInternalServerError"
+
 
   /apps/{id}/compose:
     get:
@@ -373,6 +433,9 @@ paths:
       parameters:
         - $ref: "#/components/parameters/DryRun"
         - $ref: "#/components/parameters/CheckPortConflict"
+        # TODO remove the unused parameters later. 
+        # the params is deprecated. because frontend is hard to know is the app is stable or not.
+        - $ref: "#/components/parameters/Uncontrolled"
       requestBody:
         $ref: "#/components/requestBodies/RequestComposeApp"
       responses:
@@ -420,6 +483,7 @@ paths:
         - $ref: "#/components/parameters/ComposeAppID"
         - $ref: "#/components/parameters/DryRun"
         - $ref: "#/components/parameters/CheckPortConflict"
+        - $ref: "#/components/parameters/Uncontrolled"
       requestBody:
         $ref: "#/components/requestBodies/RequestComposeApp"
       responses:
@@ -435,7 +499,7 @@ paths:
     patch:
       summary: Update container images of compose app to match the compose app in AppStore.
       description: |
-        TODO - add description
+        Update a ComposeApp to the latest version of the app in the AppStore.
       operationId: updateComposeApp
       tags:
         - Compose methods
@@ -625,6 +689,30 @@ paths:
         "200":
           $ref: "#/components/responses/GetWebAppGridOK"
 
+  # the endpoint is newer version of POST /appstore for the demand of @ETWang1991 
+  # the old api is dependent by CasaOS. So we can't remove it.
+  # a good idea is /v3/app-management/appstore. But it is hard to implement in ZimaOS
+  # So I had to add the endpoint here.
+  /web/sync/appstore:
+    post:
+      summary: Register an app store in Sync.
+      description: |
+        (TODO)
+      operationId: registerAppStoreSync
+      tags:
+        - AppStore methods
+      parameters:
+        - $ref: "#/components/parameters/AppStoreURL"
+      responses:
+        "200":
+          $ref: "#/components/responses/AppStoreRegisterOK"
+        "400":
+          $ref: "#/components/responses/ResponseBadRequest"
+        "409":
+          $ref: "#/components/responses/ResponseConflict"
+        "500":
+          $ref: "#/components/responses/ResponseInternalServerError"
+
 components:
   securitySchemes:
     access_token:
@@ -667,7 +755,7 @@ components:
       schema:
         type: string
         example: "syncthing"
-
+    
     StoreAppCategoryFilter:
       name: category
       description: Category of the store app
@@ -764,6 +852,18 @@ components:
         type: boolean
         default: true
 
+    Uncontrolled:
+      name: uncontrolled
+      description: |
+        Install the app without any control. the control mean version control, if the app is stable and latest. it is controlled, It will auto update. otherwise it is uncontrolled.
+
+        - `true` - uncontrolled install
+        - `false` - normal install
+      in: query
+      schema:
+        type: boolean
+        example: false
+
   requestBodies:
     RequestComposeApp:
       description: Compose app YAML content
@@ -828,6 +928,15 @@ components:
             $ref: "#/components/schemas/BaseResponse"
           example:
             message: "Bad Request"
+    
+    ResponseConflict:
+      description: Conflict
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/BaseResponse"
+          example:
+            message: "Conflict"
 
     ResponseServiceUnavailable:
       description: Service Unavailable
@@ -869,6 +978,18 @@ components:
                     items:
                       $ref: "#/components/schemas/GlobalSetting"
 
+    UpgradableAppListOK:
+      description: OK
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: "#/components/schemas/BaseResponse"
+              - properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/UpgradableAppInfo"
     AppStoreListOK:
       description: OK
       content:
@@ -922,6 +1043,17 @@ components:
                   data:
                     $ref: "#/components/schemas/ComposeAppStoreInfoLists"
 
+    ComposeAppStoreTagOK:
+      description: OK
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: "#/components/schemas/BaseResponse"
+              - properties:
+                  data:
+                    $ref: "#/components/schemas/ComposeAppStoreTag"
+    
     ComposeAppStoreInfoOK:
       description: OK
       content:
@@ -1163,6 +1295,14 @@ components:
           additionalProperties:
             $ref: "#/components/schemas/ComposeAppStoreInfo"
 
+    ComposeAppStoreTag:
+      required:
+        - tag
+      properties:
+        tag:
+          type: string
+          example: "v10.2"
+
     ComposeAppStoreInfo:
       required:
         - author
@@ -1186,6 +1326,12 @@ components:
             type: string
           example:
             en_us: Syncthing
+        image:
+          type: object
+          additionalProperties:
+            type: string
+          example:
+            en_us: syncthing:latest
         description:
           type: object
           additionalProperties:
@@ -1275,7 +1421,15 @@ components:
             - "arm64"
           x-oapi-codegen-extra-tags:
             yaml: ",omitempty"
-
+        is_uncontrolled: # uncontrolled == not stable and latest
+          title: is the app uncontrolled. 
+          description: |
+            the mean the image tag is custom. not stable or latest
+          type: boolean
+          example: false
+          x-oapi-codegen-extra-tags:
+            yaml: ",omitempty"
+          
     ComposeApp:
       type: object
       description: |-
@@ -1304,6 +1458,15 @@ components:
           readOnly: true
           type: boolean
           example: true
+          x-oapi-codegen-extra-tags:
+            yaml: ",omitempty"
+        is_uncontrolled:
+          readOnly: true
+          title: is the app uncontrolled. 
+          description: |
+            the mean the image tag is custom. not stable or latest
+          type: boolean
+          example: false
           x-oapi-codegen-extra-tags:
             yaml: ",omitempty"
 
@@ -1343,16 +1506,49 @@ components:
             type: string
             example: "8384"
 
+    UpgradableAppInfo:
+      title: Upgradable app info
+      description: |-
+        Schema for `UpgradableAppListOK` response.
+      required:
+        - title
+        - version
+        - store_app_id
+        - status
+        - icon
+      properties:
+        title:
+          type: string
+          example: "{en_US:\"Syncthing\"}"
+        version:
+          description: current version of the installed app
+          type: string
+          example: "v10.2"
+        store_app_id:
+          $ref: "#/components/schemas/StoreAppID"
+        icon:
+          type: string
+          example: "https://cdn.jsdelivr.net/gh/IceWhaleTech/CasaOS-AppStore@main/Apps/Syncthing/icon.png"
+        status:
+          type: string
+          enum:
+            - "idle"
+            - "updating"
+
     AppStoreInfo:
       title: StoreInfo of an app
       description: |-
         > Do not mistake it as *information of AppStore* which does not exist.
       required:
+        - image
         - envs
         - ports
         - volumes
         - devices
       properties:
+        image:
+          type: string
+          example: "syncthing:latest"
         envs:
           type: array
           items:
@@ -1573,3 +1769,6 @@ components:
         image:
           type: string
           example: gitea/gitea:1
+        is_uncontrolled:
+          type: boolean
+          example: false

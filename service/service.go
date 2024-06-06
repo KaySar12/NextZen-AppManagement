@@ -32,8 +32,6 @@ var (
 type Services interface {
 	AppStoreManagement() *AppStoreManagement
 
-	V2AppStore() AppStore
-
 	// Git() *GitService
 	Compose() *ComposeService
 	Docker() DockerService
@@ -48,24 +46,19 @@ func NewService(RuntimePath string) Services {
 		panic(err)
 	}
 
-	v2appStore := AppStore(NewAppStoreManagement())
-
 	return &store{
 		gateway: gatewayManagement,
 		notify:  external.NewNotifyService(RuntimePath),
 
 		appStoreManagement: NewAppStoreManagement(),
 
-		v2appStore: v2appStore,
-		compose:    NewComposeService(),
-		docker:     NewDockerService(),
+		compose: NewComposeService(),
+		docker:  NewDockerService(),
 	}
 }
 
 type store struct {
 	appStoreManagement *AppStoreManagement
-
-	v2appStore AppStore
 
 	// git     *GitService
 	compose *ComposeService
@@ -85,14 +78,6 @@ func (c *store) Notify() external.NotifyService {
 func (c *store) AppStoreManagement() *AppStoreManagement {
 	return c.appStoreManagement
 }
-
-func (c *store) V2AppStore() AppStore {
-	return c.v2appStore
-}
-
-// func (c *store) Git() *GitService {
-// 	return c.git
-// }
 
 func (c *store) Compose() *ComposeService {
 	return c.compose
@@ -137,14 +122,23 @@ func PublishEventWrapper(ctx context.Context, eventType message_bus.EventType, p
 		properties[k] = v
 	}
 
-	response, err := MyService.MessageBus().PublishEventWithResponse(ctx, common.AppManagementServiceName, eventType.Name, properties)
+	resp, err := external.PublishEventInSocket(ctx, eventType.SourceID, eventType.Name, properties)
 	if err != nil {
 		logger.Error("failed to publish event", zap.Error(err))
-		return
-	}
-	defer response.HTTPResponse.Body.Close()
 
-	if response.StatusCode() != http.StatusOK {
-		logger.Error("failed to publish event", zap.String("status code", response.Status()))
+		response, err := MyService.MessageBus().PublishEventWithResponse(ctx, common.AppManagementServiceName, eventType.Name, properties)
+		if err != nil {
+			logger.Error("failed to publish event", zap.Error(err))
+			return
+		}
+		defer response.HTTPResponse.Body.Close()
+
+		if response.StatusCode() != http.StatusOK {
+			logger.Error("failed to publish event", zap.String("status code", response.Status()))
+		}
+	} else {
+		if resp.StatusCode != http.StatusOK {
+			logger.Error("failed to publish event", zap.String("status code", resp.Status))
+		}
 	}
 }

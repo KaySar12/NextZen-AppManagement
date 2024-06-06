@@ -22,7 +22,9 @@ import (
 var ErrComposeAppIDNotProvided = errors.New("compose AppID (compose project name) is not provided")
 
 func (a *AppManagement) MyComposeAppList(ctx echo.Context) error {
-	composeAppsWithStoreInfo, err := composeAppsWithStoreInfo(ctx.Request().Context())
+	composeAppsWithStoreInfo, err := composeAppsWithStoreInfo(ctx.Request().Context(), composeAppsWithStoreInfoOpts{
+		checkIsUpdateAvailable: true,
+	})
 	if err != nil {
 		message := err.Error()
 		logger.Error("failed to list compose apps with store info", zap.Error(err))
@@ -82,20 +84,60 @@ func (a *AppManagement) MyComposeApp(ctx echo.Context, id codegen.ComposeAppID) 
 		logger.Error("failed to get compose app status", zap.Error(err), zap.String("composeAppID", id))
 	}
 
+	// disable the because performance issue
+	// check update is hard and cost a lot of time. specially when the tag is latest
+	// such as Stable Diffusion. the check by ZimaOS GPU Application by @LinkLeong
+	// Alought @LinkLeong Didn't need the field.
+	// We should add a new API to get app info without update info
+	// and restore the following code
+
 	// check if updateAvailable
-	updateAvailable := composeApp.IsUpdateAvailable()
+	// updateAvailable := service.MyService.AppStoreManagement().IsUpdateAvailable(composeApp)
 
 	message := fmt.Sprintf("!! JSON format is for debugging purpose only - use `Accept: %s` HTTP header to get YAML instead !!", common.MIMEApplicationYAML)
 	return ctx.JSON(http.StatusOK, codegen.ComposeAppOK{
 		// extension properties aren't marshalled - https://github.com/golang/go/issues/6213
 		Message: &message,
 		Data: &codegen.ComposeAppWithStoreInfo{
-			StoreInfo:       storeInfo,
-			Compose:         (*types.Project)(composeApp),
-			Status:          &status,
-			UpdateAvailable: &updateAvailable,
+			StoreInfo: storeInfo,
+			Compose:   (*types.Project)(composeApp),
+			Status:    &status,
+
+			// see above comment
+			UpdateAvailable: nil,
 		},
 	})
+}
+
+func (a *AppManagement) IsNewComposeUncontrolled(newComposeApp *service.ComposeApp) (bool, error) {
+	// to check if the new compose app is uncontrolled
+	newTag, err := newComposeApp.MainTag()
+	if err != nil {
+		return false, err
+	}
+
+	// TODO refactor this. because if user not update. the status will be uncontrolled.
+	if lo.Contains(common.NeedCheckDigestTags, newTag) {
+		return false, nil
+	}
+
+	// compare store info
+	StoreApp, err := service.MyService.AppStoreManagement().ComposeApp(newComposeApp.Name)
+	if err != nil {
+		return false, err
+	}
+
+	if StoreApp == nil {
+		logger.Error("store app not found", zap.String("composeAppID", newComposeApp.Name))
+		return false, nil
+	}
+
+	StableTag, err := StoreApp.MainTag()
+	if err != nil {
+		return false, err
+	}
+
+	return StableTag != newTag, nil
 }
 
 func (a *AppManagement) ApplyComposeAppSettings(ctx echo.Context, id codegen.ComposeAppID, params codegen.ApplyComposeAppSettingsParams) error {
@@ -134,6 +176,24 @@ func (a *AppManagement) ApplyComposeAppSettings(ctx echo.Context, id codegen.Com
 			Message: &message,
 		})
 	}
+
+	uncontrolled, err := a.IsNewComposeUncontrolled(newComposeApp)
+	if err != nil {
+		message := err.Error()
+		return ctx.JSON(http.StatusInternalServerError, codegen.ResponseInternalServerError{
+			Message: &message,
+		})
+	}
+
+	_ = newComposeApp.SetUncontrolled(uncontrolled)
+	buf, err = service.GenerateYAMLFromComposeApp(*newComposeApp)
+	if err != nil {
+		message := err.Error()
+		return ctx.JSON(http.StatusInternalServerError, codegen.ResponseInternalServerError{
+			Message: &message,
+		})
+	}
+
 	if params.CheckPortConflict == nil || *params.CheckPortConflict {
 
 		// validation 1 - check if there are ports in use
@@ -213,7 +273,6 @@ func (a *AppManagement) ApplyComposeAppSettings(ctx echo.Context, id codegen.Com
 }
 
 func (a *AppManagement) InstallComposeApp(ctx echo.Context, params codegen.InstallComposeAppParams) error {
-	// 1. Read the request body as a YAML file
 	buf, err := YAMLfromRequest(ctx)
 	if err != nil {
 		message := err.Error()
@@ -222,7 +281,7 @@ func (a *AppManagement) InstallComposeApp(ctx echo.Context, params codegen.Insta
 		})
 	}
 
-	// 2. Validate the YAML content by creating a new ComposeApp from it
+	// validate new compose yaml
 	composeApp, err := service.NewComposeAppFromYAML(buf, false, true)
 	if err != nil {
 		message := err.Error()
@@ -231,8 +290,18 @@ func (a *AppManagement) InstallComposeApp(ctx echo.Context, params codegen.Insta
 		})
 	}
 
+	uncontrolled, err := a.IsNewComposeUncontrolled(composeApp)
+	if err != nil {
+		message := err.Error()
+		return ctx.JSON(http.StatusInternalServerError, codegen.ResponseInternalServerError{
+			Message: &message,
+		})
+	}
+
+	_ = composeApp.SetUncontrolled(uncontrolled)
+
 	if params.CheckPortConflict == nil || *params.CheckPortConflict {
-		// 3. Check if there are any ports in use by the new compose app
+		// validation 1 - check if there are ports in use
 		validation, err := composeApp.GetPortsInUse()
 		if err != nil {
 			message := err.Error()
@@ -257,17 +326,21 @@ func (a *AppManagement) InstallComposeApp(ctx echo.Context, params codegen.Insta
 			})
 		}
 	}
-	// 4. If dry_run is true, only validate the YAML content and return a 200 OK response
+
 	if params.DryRun != nil && *params.DryRun {
 		return ctx.JSON(http.StatusOK, codegen.ComposeAppInstallOK{
 			Message: lo.ToPtr("only validation has been done because `dry_run` is specified - skipping compose app installation"),
 		})
 	}
 
-	// 5. Attach context key/value pairs from upstream to the background context
+	if service.MyService.Compose().IsInstalling(composeApp.Name) {
+		message := fmt.Sprintf("compose app `%s` is already being installed", composeApp.Name)
+		return ctx.JSON(http.StatusConflict, codegen.ComposeAppBadRequest{Message: &message})
+	}
+
+	// attach context key/value pairs from upstream
 	backgroundCtx := common.WithProperties(context.Background(), PropertiesFromQueryParams(ctx))
 
-	//6. Install
 	if err := service.MyService.Compose().Install(backgroundCtx, composeApp); err != nil {
 		logger.Error("failed to start compose app installation", zap.Error(err))
 
@@ -345,7 +418,7 @@ func (a *AppManagement) UpdateComposeApp(ctx echo.Context, id codegen.ComposeApp
 
 	if params.Force != nil && !*params.Force {
 		// check if updateAvailable
-		if !composeApp.IsUpdateAvailable() {
+		if !service.MyService.AppStoreManagement().IsUpdateAvailable(composeApp) {
 			message := fmt.Sprintf("compose app `%s` is up to date", id)
 			return ctx.JSON(http.StatusOK, codegen.ComposeAppUpdateOK{Message: &message})
 		}
@@ -559,7 +632,14 @@ func YAMLfromRequest(ctx echo.Context) ([]byte, error) {
 	return buf, nil
 }
 
-func composeAppsWithStoreInfo(ctx context.Context) (map[string]codegen.ComposeAppWithStoreInfo, error) {
+type composeAppsWithStoreInfoOpts struct {
+	checkIsUpdateAvailable bool
+	// The /web/appgrid endpoint does not require information about whether the application can be updated, so we added an option.
+	// This endpoint is called as soon as CasaOS is opened, and we don't have time to cache it in advance.
+	// We must ensure that this endpoint responds as quickly as possible.
+}
+
+func composeAppsWithStoreInfo(ctx context.Context, opts composeAppsWithStoreInfoOpts) (map[string]codegen.ComposeAppWithStoreInfo, error) {
 	composeApps, err := service.MyService.Compose().List(ctx)
 	if err != nil {
 		return nil, err
@@ -575,6 +655,7 @@ func composeAppsWithStoreInfo(ctx context.Context) (map[string]codegen.ComposeAp
 			StoreInfo:       nil,
 			Status:          utils.Ptr("unknown"),
 			UpdateAvailable: utils.Ptr(false),
+			IsUncontrolled:  utils.Ptr(false),
 		}
 
 		storeInfo, err := composeApp.StoreInfo(true)
@@ -585,10 +666,11 @@ func composeAppsWithStoreInfo(ctx context.Context) (map[string]codegen.ComposeAp
 
 		composeAppWithStoreInfo.StoreInfo = storeInfo
 
-		// check if updateAvailable
-		updateAvailable := composeApp.IsUpdateAvailable()
-
-		composeAppWithStoreInfo.UpdateAvailable = &updateAvailable
+		if opts.checkIsUpdateAvailable {
+			// check if updateAvailable
+			updateAvailable := service.MyService.AppStoreManagement().IsUpdateAvailable(composeApp)
+			composeAppWithStoreInfo.UpdateAvailable = &updateAvailable
+		}
 
 		// status
 		if storeInfo.Main == nil {
@@ -606,6 +688,11 @@ func composeAppsWithStoreInfo(ctx context.Context) (map[string]codegen.ComposeAp
 		if !ok {
 			logger.Error("failed to get main app container", zap.String("composeAppID", id))
 			return composeAppWithStoreInfo
+		}
+
+		isUncontrolled, ok := composeApp.Extensions[common.ComposeExtensionNameXCasaOS].(map[string]interface{})[common.ComposeExtensionPropertyNameIsUncontrolled].(bool)
+		if ok {
+			composeAppWithStoreInfo.IsUncontrolled = &isUncontrolled
 		}
 
 		// Because of a stupid design by @tigerinus, the `composeApp.Containers(...)` func above was returning a map

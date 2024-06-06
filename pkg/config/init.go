@@ -41,7 +41,6 @@ var (
 	GlobalEnvFilePath string
 )
 
-// init-config-setup
 func InitSetup(config string, sample string) {
 	ConfigFilePath = AppManagementConfigFilePath
 	if len(config) > 0 {
