@@ -9,4 +9,4 @@ AppStorePath = /var/lib/casaos/appstore
 AppsPath = /var/lib/casaos/apps
 
 [server]
-appstore = https://github.com/KaySar12/CasaOS-AppStore/releases/download/1.0.0/main.zip
+appstore = https://dl.nextzenos.com/setup/nextzenos/appstore/main.zip
