@@ -1,7 +1,6 @@
 #!/bin/bash
 
 set -e
-
 readonly APP_NAME="casaos-app-management"
 readonly APP_NAME_SHORT="app-management"
 
@@ -12,7 +11,7 @@ readonly CONF_FILE_SAMPLE=${CONF_PATH}/${APP_NAME_SHORT}.conf.sample
 
 if [ ! -f "${CONF_FILE}" ]; then \
     echo "Initializing config file..."
-    cp -v "${CONF_FILE_SAMPLE}" "${CONF_FILE}"; \
+  sudo cp -v "${CONF_FILE_SAMPLE}" "${CONF_FILE}"; \
 fi
 
 systemctl daemon-reload

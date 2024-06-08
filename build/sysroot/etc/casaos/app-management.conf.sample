@@ -9,4 +9,4 @@ AppStorePath = /var/lib/casaos/appstore
 AppsPath = /var/lib/casaos/apps
 
 [server]
-appstore = https://dl.nextzenos.com/setup/nextzenos/appstore/main.zip
+appstore = https://casaos.app/store/main.zip

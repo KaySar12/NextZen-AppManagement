@@ -49,7 +49,7 @@ readonly SETUP_SCRIPT_FILEPATH="${SETUP_SCRIPT_DIRECTORY}/${SETUP_SCRIPT_FILENAM
 
 {
     echo "🟩 Running ${SETUP_SCRIPT_FILENAME}..."
-    $BASH "${SETUP_SCRIPT_FILEPATH}" "${BUILD_PATH}"
+    sudo "$BASH" "${SETUP_SCRIPT_FILEPATH}" "${BUILD_PATH}"
 } || {
     echo "🟥 ${SETUP_SCRIPT_FILENAME} failed."
     exit 1
