@@ -74,15 +74,15 @@ func DockerTerminal(ctx echo.Context) error {
 	return nil
 }
 
-// @Summary 安装app(该接口需要post json数据)
+// @Summary Install the app (this interface requires POST JSON data)
 // @Produce  application/json
 // @Accept application/json
 // @Tags app
 // @Param  id path int true "id"
 // @Param  port formData int true "主端口"
-// @Param  tcp formData string false "tcp端口"
-// @Param  udp formData string false "udp端口"
-// @Param  env formData string false "环境变量"
+// @Param  tcp formData string false "TCP port"
+// @Param  udp formData string false "UDP port"
+// @Param  env formData string false "Environment variable"
 // @Security ApiKeyAuth
 // @Success 200 {string} string "ok"
 // @Router /app/install [post]
