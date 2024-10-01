@@ -11,7 +11,7 @@ TAG=v1.2.3
 ARCHIVE_PATH=buildzip
 PACKAGE_NAME=$(OS)-$(ARCHITECHTURE)-nextzenos-app-management-$(TAG)
 
-build-service:
+build_service:
 	$(GORELEASERBUILD) --clean --snapshot -f .goreleaser.debug.yaml --id $(SERVICE)-$(ARCHITECHTURE)
 
 package:

@@ -19,14 +19,14 @@ const (
 
 // @tiger - 对于用于出参的数据结构，静态信息（例如 title）和
 //
-//	动态信息（例如 state、query_count）应该划分到不同的数据结构中
+// Dynamic information (such as state, query_count) should be divided into different data structures
 //
-//	这样的好处是
-//	1 - 多次获取动态信息时可以减少出参复杂度，因为静态信息只获取一次就好
-//	2 - 在未来的迭代中，可以降低维护成本（所有字段都展开放在一个层级维护成本略高）
+// This advantage is
+// 1 -When obtaining dynamic information multiple times, it can reduce the complexity of the reference, because the static information is only obtained once
+// 2 -In the future iterative iteration, the maintenance cost can be reduced (all fields are expanded at a level of maintenance costs slightly higher)
 //
-//	另外，一些针对性字段，例如 Docker 相关的，可以用 map 来保存。
-//	这样在未来增加多态 App，例如 Snap，不需要维护多个结构，或者一个结构保存不必要的字段
+// In addition, some targeted fields, such as docker -related, can be saved with MAP.
+// In the future, add polymorphic apps in the future, such as SNAP, no need to maintain multiple structures, or a unnecessary field preserved in structure
 type ServerAppList struct {
 	ID             uint      `gorm:"column:id;primary_key" json:"id"`
 	Title          string    `json:"title"`

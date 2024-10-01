@@ -15,7 +15,7 @@ type Category struct {
 	//CreatedAt time.Time `json:"created_at"`
 	//
 	//UpdatedAt time.Time `json:"updated_at"`
-	Font  string `json:"font"` // @tiger - 如果这个和前端有关，应该不属于后端的出参范围，而是前端去界定
+	Font  string `json:"font"` // @tiger - If this is related to the front end, it should not belong to the scope of the back end, but the front end is defined
 	Name  string `json:"name"`
-	Count uint   `json:"count"` // @tiger - count 属于动态信息，应该单独放在一个出参结构中（原因见另外一个关于 静态/动态 出参的注释）
+	Count uint   `json:"count"` // @tiger - count belongs to dynamic information, and should be placed in one exit (reason for another annotation about static/dynamic exit)
 }
