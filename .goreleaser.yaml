@@ -88,74 +88,74 @@ builds:
       - arm
     goarm:
       - "7"
-  - id: casaos-app-management-migration-tool-amd64
-    binary: build/sysroot/usr/bin/casaos-app-management-migration-tool
-    hooks:
-      post:
-        - upx --best --lzma -v --no-progress "{{ .Path }}"
-    main: ./cmd/migration-tool
-    env:
-      - CC=x86_64-linux-gnu-gcc
-    ldflags:
-      - -X main.commit={{.Commit}}
-      - -X main.date={{.Date}}
-      - -s
-      - -w
-      - -extldflags "-static"
-    tags:
-      - musl
-      - netgo
-      - osusergo
-    goos:
-      - linux
-    goarch:
-      - amd64
-  - id: casaos-app-management-migration-tool-arm64
-    binary: build/sysroot/usr/bin/casaos-app-management-migration-tool
-    # hooks:
-    #   post:
-    #     - upx --best --lzma -v --no-progress "{{ .Path }}"
-    main: ./cmd/migration-tool
-    env:
-      - CC=aarch64-linux-gnu-gcc
-    ldflags:
-      - -X main.commit={{.Commit}}
-      - -X main.date={{.Date}}
-      - -s
-      - -w
-      - -extldflags "-static"
-    tags:
-      - musl
-      - netgo
-      - osusergo
-    goos:
-      - linux
-    goarch:
-      - arm64
-  - id: casaos-app-management-migration-tool-arm-7
-    binary: build/sysroot/usr/bin/casaos-app-management-migration-tool
-    hooks:
-      post:
-        - upx --best --lzma -v --no-progress "{{ .Path }}"
-    main: ./cmd/migration-tool
-    env:
-      - CC=arm-linux-gnueabihf-gcc
-    ldflags:
-      - -X main.commit={{.Commit}}
-      - -X main.date={{.Date}}
-      - -s
-      - -w
-      - -extldflags "-static"
-    tags:
-      - musl
-      - netgo
-      - osusergo
-    goos:
-      - linux
-    goarch:
-      - arm
-    goarm:
-      - "7"
+  # - id: casaos-app-management-migration-tool-amd64
+  #   binary: build/sysroot/usr/bin/casaos-app-management-migration-tool
+  #   hooks:
+  #     post:
+  #       - upx --best --lzma -v --no-progress "{{ .Path }}"
+  #   main: ./cmd/migration-tool
+  #   env:
+  #     - CC=x86_64-linux-gnu-gcc
+  #   ldflags:
+  #     - -X main.commit={{.Commit}}
+  #     - -X main.date={{.Date}}
+  #     - -s
+  #     - -w
+  #     - -extldflags "-static"
+  #   tags:
+  #     - musl
+  #     - netgo
+  #     - osusergo
+  #   goos:
+  #     - linux
+  #   goarch:
+  #     - amd64
+  # - id: casaos-app-management-migration-tool-arm64
+  #   binary: build/sysroot/usr/bin/casaos-app-management-migration-tool
+  #   # hooks:
+  #   #   post:
+  #   #     - upx --best --lzma -v --no-progress "{{ .Path }}"
+  #   main: ./cmd/migration-tool
+  #   env:
+  #     - CC=aarch64-linux-gnu-gcc
+  #   ldflags:
+  #     - -X main.commit={{.Commit}}
+  #     - -X main.date={{.Date}}
+  #     - -s
+  #     - -w
+  #     - -extldflags "-static"
+  #   tags:
+  #     - musl
+  #     - netgo
+  #     - osusergo
+  #   goos:
+  #     - linux
+  #   goarch:
+  #     - arm64
+  # - id: casaos-app-management-migration-tool-arm-7
+  #   binary: build/sysroot/usr/bin/casaos-app-management-migration-tool
+  #   hooks:
+  #     post:
+  #       - upx --best --lzma -v --no-progress "{{ .Path }}"
+  #   main: ./cmd/migration-tool
+  #   env:
+  #     - CC=arm-linux-gnueabihf-gcc
+  #   ldflags:
+  #     - -X main.commit={{.Commit}}
+  #     - -X main.date={{.Date}}
+  #     - -s
+  #     - -w
+  #     - -extldflags "-static"
+  #   tags:
+  #     - musl
+  #     - netgo
+  #     - osusergo
+  #   goos:
+  #     - linux
+  #   goarch:
+  #     - arm
+  #   goarm:
+  #     - "7"
   - id: casaos-app-management-validator-amd64
     binary: build/sysroot/usr/bin/casaos-app-management-validator
     hooks:
@@ -189,15 +189,15 @@ archives:
       - casaos-app-management-arm-7
     files:
       - build/**/*
-  - name_template: >-
-      {{ .Os }}-{{- if eq .Arch "arm" }}arm-7{{- else }}{{ .Arch }}{{- end }}-{{ .ProjectName }}-migration-tool-v{{ .Version }}
-    id: casaos-app-management-migration-tool
-    builds:
-      - casaos-app-management-migration-tool-amd64
-      - casaos-app-management-migration-tool-arm64
-      - casaos-app-management-migration-tool-arm-7
-    files:
-      - build/sysroot/etc/**/*
+  # - name_template: >-
+  #     {{ .Os }}-{{- if eq .Arch "arm" }}arm-7{{- else }}{{ .Arch }}{{- end }}-{{ .ProjectName }}-migration-tool-v{{ .Version }}
+  #   id: casaos-app-management-migration-tool
+  #   builds:
+  #     - casaos-app-management-migration-tool-amd64
+  #     - casaos-app-management-migration-tool-arm64
+  #     - casaos-app-management-migration-tool-arm-7
+  #   files:
+  #     - build/sysroot/etc/**/*
   - name_template: >-
       {{ .Os }}-{{- if eq .Arch "arm" }}arm-7{{- else }}{{ .Arch }}{{- end }}-{{ .ProjectName }}-validator-v{{ .Version }}
     id: casaos-app-management-validator
