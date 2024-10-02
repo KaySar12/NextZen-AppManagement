@@ -28,3 +28,4 @@ package-lock.json
 *.sh
 *.env
 .env
+build/sysroot/usr/bin
