@@ -8,7 +8,7 @@ before:
     - go mod tidy
     - go test -race -v ./... -timeout 30m
 builds:
-  - id: casaos-app-management-amd64
+  - id: nextzen-app-management-amd64
     binary: build/sysroot/usr/bin/casaos-app-management
     hooks:
       post:
@@ -34,7 +34,7 @@ builds:
       - linux
     goarch:
       - amd64
-  - id: casaos-app-management-arm64
+  - id: nextzen-app-management-arm64
     binary: build/sysroot/usr/bin/casaos-app-management
     hooks:
       post:
@@ -60,7 +60,7 @@ builds:
       - linux
     goarch:
       - arm64
-  - id: casaos-app-management-arm-7
+  - id: nextzen-app-management-arm-7
     binary: build/sysroot/usr/bin/casaos-app-management
     hooks:
       post:
@@ -156,7 +156,7 @@ builds:
   #     - arm
   #   goarm:
   #     - "7"
-  - id: casaos-app-management-validator-amd64
+  - id: nextzen-app-management-validator-amd64
     binary: build/sysroot/usr/bin/casaos-app-management-validator
     hooks:
       post:
@@ -184,9 +184,9 @@ archives:
       {{ .Os }}-{{- if eq .Arch "arm" }}arm-7{{- else }}{{ .Arch }}{{- end }}-{{ .ProjectName }}-v{{ .Version }}
     id: casaos-app-management
     builds:
-      - casaos-app-management-amd64
-      - casaos-app-management-arm64
-      - casaos-app-management-arm-7
+      - nextzen-app-management-amd64
+      - nextzen-app-management-arm64
+      - nextzen-app-management-arm-7
     files:
       - build/**/*
   # - name_template: >-
@@ -200,9 +200,9 @@ archives:
   #     - build/sysroot/etc/**/*
   - name_template: >-
       {{ .Os }}-{{- if eq .Arch "arm" }}arm-7{{- else }}{{ .Arch }}{{- end }}-{{ .ProjectName }}-validator-v{{ .Version }}
-    id: casaos-app-management-validator
+    id: nextzen-app-management-validator
     builds:
-      - casaos-app-management-validator-amd64
+      - nextzen-app-management-validator-amd64
     files:
       - build/sysroot/etc/**/*
 
