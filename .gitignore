@@ -23,9 +23,6 @@ CasaOS-AppManagement
 # node_modules
 node_modules
 package-lock.json
-
 .idea
-build/sysroot/usr/bin/appfile2compose
 *.gz
-build/sysroot/usr/bin/casaos-app-management
 *.sh
