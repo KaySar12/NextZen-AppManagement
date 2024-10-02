@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/IceWhaleTech/CasaOS-AppManagement/common"
-	"github.com/IceWhaleTech/CasaOS-AppManagement/pkg/docker"
 	"github.com/IceWhaleTech/CasaOS-Common/utils/logger"
+	"github.com/KaySar12/NextZen-AppManagement/common"
+	"github.com/KaySar12/NextZen-AppManagement/pkg/docker"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	client2 "github.com/docker/docker/client"

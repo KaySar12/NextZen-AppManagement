@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/IceWhaleTech/CasaOS-AppManagement/common"
-	"github.com/IceWhaleTech/CasaOS-AppManagement/model"
-	"github.com/IceWhaleTech/CasaOS-AppManagement/service"
+	"github.com/KaySar12/NextZen-AppManagement/common"
+	"github.com/KaySar12/NextZen-AppManagement/model"
+	"github.com/KaySar12/NextZen-AppManagement/service"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
 )

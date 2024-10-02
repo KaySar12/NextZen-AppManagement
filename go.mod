@@ -1,4 +1,4 @@
-module github.com/IceWhaleTech/CasaOS-AppManagement
+module github.com/KaySar12/NextZen-AppManagement
 
 go 1.21
 

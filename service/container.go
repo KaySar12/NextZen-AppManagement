@@ -16,16 +16,16 @@ import (
 	"github.com/samber/lo"
 	"go.uber.org/zap"
 
-	"github.com/IceWhaleTech/CasaOS-AppManagement/common"
-	"github.com/IceWhaleTech/CasaOS-AppManagement/model"
-	"github.com/IceWhaleTech/CasaOS-AppManagement/pkg/config"
-	"github.com/IceWhaleTech/CasaOS-AppManagement/pkg/docker"
-	"github.com/IceWhaleTech/CasaOS-AppManagement/pkg/utils/envHelper"
-	v1 "github.com/IceWhaleTech/CasaOS-AppManagement/service/v1"
 	"github.com/IceWhaleTech/CasaOS-Common/utils/file"
 	"github.com/IceWhaleTech/CasaOS-Common/utils/logger"
 	"github.com/IceWhaleTech/CasaOS-Common/utils/random"
 	timeutils "github.com/IceWhaleTech/CasaOS-Common/utils/time"
+	"github.com/KaySar12/NextZen-AppManagement/common"
+	"github.com/KaySar12/NextZen-AppManagement/model"
+	"github.com/KaySar12/NextZen-AppManagement/pkg/config"
+	"github.com/KaySar12/NextZen-AppManagement/pkg/docker"
+	"github.com/KaySar12/NextZen-AppManagement/pkg/utils/envHelper"
+	v1 "github.com/KaySar12/NextZen-AppManagement/service/v1"
 
 	//"github.com/containerd/containerd/oci"
 

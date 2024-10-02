@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/IceWhaleTech/CasaOS-AppManagement/service"
 	"github.com/IceWhaleTech/CasaOS-Common/utils/file"
 	utils_logger "github.com/IceWhaleTech/CasaOS-Common/utils/logger"
+	"github.com/KaySar12/NextZen-AppManagement/service"
 )
 
 var logger = NewLogger()

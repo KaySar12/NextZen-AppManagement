@@ -5,10 +5,10 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/IceWhaleTech/CasaOS-AppManagement/common"
-	"github.com/IceWhaleTech/CasaOS-AppManagement/pkg/docker"
-	"github.com/IceWhaleTech/CasaOS-AppManagement/service"
 	"github.com/IceWhaleTech/CasaOS-Common/utils/logger"
+	"github.com/KaySar12/NextZen-AppManagement/common"
+	"github.com/KaySar12/NextZen-AppManagement/pkg/docker"
+	"github.com/KaySar12/NextZen-AppManagement/service"
 	"go.uber.org/goleak"
 	"gotest.tools/v3/assert"
 )

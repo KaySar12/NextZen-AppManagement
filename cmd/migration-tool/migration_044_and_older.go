@@ -7,7 +7,7 @@ import (
 
 	interfaces "github.com/IceWhaleTech/CasaOS-Common"
 
-	"github.com/IceWhaleTech/CasaOS-AppManagement/pkg/config"
+	"github.com/KaySar12/NextZen-AppManagement/pkg/config"
 )
 
 type UrlReplacement struct {

@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/IceWhaleTech/CasaOS-AppManagement/common"
 	interfaces "github.com/IceWhaleTech/CasaOS-Common"
 	"github.com/IceWhaleTech/CasaOS-Common/utils/systemctl"
+	"github.com/KaySar12/NextZen-AppManagement/common"
 )
 
 const (

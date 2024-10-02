@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/IceWhaleTech/CasaOS-AppManagement/codegen/message_bus"
-	"github.com/IceWhaleTech/CasaOS-AppManagement/common"
 	"github.com/IceWhaleTech/CasaOS-Common/external"
+	"github.com/KaySar12/NextZen-AppManagement/codegen/message_bus"
+	"github.com/KaySar12/NextZen-AppManagement/common"
 	"github.com/samber/lo"
 )
 
