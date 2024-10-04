@@ -30,6 +30,14 @@ tags:
     description: |-
       methods for managing compose app lifecycle
 
+  - name: Authentik methods
+    description: |-
+      method for Access Authentik API
+
+  - name: 1Panel methods
+    description: |-
+      method for Access 1Panel API
+
   - name: Container methods
     description: |-
       methods for managing container app lifecycle
@@ -225,7 +233,7 @@ paths:
           $ref: "#/components/responses/ResponseNotFound"
         "500":
           $ref: "#/components/responses/ResponseInternalServerError"
-     
+
   /appstore:
     get:
       summary: Get the list of registered app stores
@@ -306,7 +314,7 @@ paths:
           $ref: "#/components/responses/ComposeAppStoreInfoListsOK"
         "500":
           $ref: "#/components/responses/ResponseInternalServerError"
-  
+
   /apps/upgradable:
     get:
       summary: Get the list of upgradable apps from installed app.
@@ -320,7 +328,6 @@ paths:
           $ref: "#/components/responses/UpgradableAppListOK"
         "500":
           $ref: "#/components/responses/ResponseInternalServerError"
-
 
   /apps/{id}:
     get:
@@ -384,7 +391,6 @@ paths:
         "500":
           $ref: "#/components/responses/ResponseInternalServerError"
 
-
   /apps/{id}/compose:
     get:
       summary: Get compose details of an app from registered app stores
@@ -433,7 +439,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/DryRun"
         - $ref: "#/components/parameters/CheckPortConflict"
-        # TODO remove the unused parameters later. 
+        # TODO remove the unused parameters later.
         # the params is deprecated. because frontend is hard to know is the app is stable or not.
         - $ref: "#/components/parameters/Uncontrolled"
       requestBody:
@@ -689,7 +695,7 @@ paths:
         "200":
           $ref: "#/components/responses/GetWebAppGridOK"
 
-  # the endpoint is newer version of POST /appstore for the demand of @ETWang1991 
+  # the endpoint is newer version of POST /appstore for the demand of @ETWang1991
   # the old api is dependent by CasaOS. So we can't remove it.
   # a good idea is /v3/app-management/appstore. But it is hard to implement in ZimaOS
   # So I had to add the endpoint here.
@@ -755,7 +761,7 @@ components:
       schema:
         type: string
         example: "syncthing"
-    
+
     StoreAppCategoryFilter:
       name: category
       description: Category of the store app
@@ -928,7 +934,7 @@ components:
             $ref: "#/components/schemas/BaseResponse"
           example:
             message: "Bad Request"
-    
+
     ResponseConflict:
       description: Conflict
       content:
@@ -1053,7 +1059,7 @@ components:
               - properties:
                   data:
                     $ref: "#/components/schemas/ComposeAppStoreTag"
-    
+
     ComposeAppStoreInfoOK:
       description: OK
       content:
@@ -1422,14 +1428,14 @@ components:
           x-oapi-codegen-extra-tags:
             yaml: ",omitempty"
         is_uncontrolled: # uncontrolled == not stable and latest
-          title: is the app uncontrolled. 
+          title: is the app uncontrolled.
           description: |
             the mean the image tag is custom. not stable or latest
           type: boolean
           example: false
           x-oapi-codegen-extra-tags:
             yaml: ",omitempty"
-          
+
     ComposeApp:
       type: object
       description: |-
@@ -1462,7 +1468,7 @@ components:
             yaml: ",omitempty"
         is_uncontrolled:
           readOnly: true
-          title: is the app uncontrolled. 
+          title: is the app uncontrolled.
           description: |
             the mean the image tag is custom. not stable or latest
           type: boolean
@@ -1519,7 +1525,7 @@ components:
       properties:
         title:
           type: string
-          example: "{en_US:\"Syncthing\"}"
+          example: '{en_US:"Syncthing"}'
         version:
           description: current version of the installed app
           type: string
