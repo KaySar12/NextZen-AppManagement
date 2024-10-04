@@ -29,7 +29,7 @@ remove_package:
 clear_archive:
 	@rm -rf $(CUR_DIR)/$(ARCHIVE_PATH)
 #make create_tag CUR_TAG=x.x TAG_MESSAGE="this is tag message"
-create_tag:push_git
+create_tag:
 	@${GIT} tag -a ${CUR_TAG} -m "${TAG_MESSAGE}" || { echo "Failed to create tag"; exit 1; }
 	@${GIT} push ${GIT_REMOTE} ${CUR_TAG} ||  { echo "Failed to push tag"; exit 1; }
 #make remove_tag CUR_TAG=x.x
