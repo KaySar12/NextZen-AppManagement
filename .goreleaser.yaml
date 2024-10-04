@@ -156,28 +156,28 @@ builds:
   #     - arm
   #   goarm:
   #     - "7"
-  - id: nextzen-app-management-validator-amd64
-    binary: build/sysroot/usr/bin/casaos-app-management-validator
-    hooks:
-      post:
-        - upx --best --lzma -v --no-progress "{{ .Path }}"
-    main: ./cmd/validator
-    env:
-      - CC=x86_64-linux-gnu-gcc
-    ldflags:
-      - -X main.commit={{.Commit}}
-      - -X main.date={{.Date}}
-      - -s
-      - -w
-      - -extldflags "-static"
-    tags:
-      - musl
-      - netgo
-      - osusergo
-    goos:
-      - linux
-    goarch:
-      - amd64
+  # - id: nextzen-app-management-validator-amd64
+  #   binary: build/sysroot/usr/bin/casaos-app-management-validator
+  #   hooks:
+  #     post:
+  #       - upx --best --lzma -v --no-progress "{{ .Path }}"
+  #   main: ./cmd/validator
+  #   env:
+  #     - CC=x86_64-linux-gnu-gcc
+  #   ldflags:
+  #     - -X main.commit={{.Commit}}
+  #     - -X main.date={{.Date}}
+  #     - -s
+  #     - -w
+  #     - -extldflags "-static"
+  #   tags:
+  #     - musl
+  #     - netgo
+  #     - osusergo
+  #   goos:
+  #     - linux
+  #   goarch:
+  #     - amd64
 
 archives:
   - name_template: >-
@@ -198,13 +198,13 @@ archives:
   #     - casaos-app-management-migration-tool-arm-7
   #   files:
   #     - build/sysroot/etc/**/*
-  - name_template: >-
-      {{ .Os }}-{{- if eq .Arch "arm" }}arm-7{{- else }}{{ .Arch }}{{- end }}-{{ .ProjectName }}-validator-v{{ .Version }}
-    id: nextzen-app-management-validator
-    builds:
-      - nextzen-app-management-validator-amd64
-    files:
-      - build/sysroot/etc/**/*
+  # - name_template: >-
+  #     {{ .Os }}-{{- if eq .Arch "arm" }}arm-7{{- else }}{{ .Arch }}{{- end }}-{{ .ProjectName }}-validator-v{{ .Version }}
+  #   id: nextzen-app-management-validator
+  #   builds:
+  #     - nextzen-app-management-validator-amd64
+  #   files:
+  #     - build/sysroot/etc/**/*
 
 checksum:
   name_template: "checksums.txt"
@@ -216,6 +216,7 @@ changelog:
     exclude:
       - "^docs:"
       - "^test:"
+      - "^update:"
 release:
   github:
     owner: KaySar12
