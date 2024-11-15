@@ -9,4 +9,4 @@ AppStorePath = /var/lib/casaos/appstore
 AppsPath = /var/lib/casaos/apps
 
 [server]
-appstore = https://casaos.app/store/main.zip
+appstore = https://git.nextzenos.com/CDN/NextZenOS/releases/download/version-1.4/linux-amd64-nextzenos-appstore.zip
