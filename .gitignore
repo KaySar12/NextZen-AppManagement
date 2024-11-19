@@ -4,7 +4,7 @@
 *.dll
 *.so
 *.dylib
-
+*.tar.gz
 # Test binary, built with `go test -c`
 *.test
 
@@ -26,3 +26,4 @@ package-lock.json
 
 .idea
 build/sysroot/usr/bin/appfile2compose
+build/sysroot/usr/bin/casaos-app-management

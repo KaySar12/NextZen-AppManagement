@@ -1,12 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"strings"
 
 	interfaces "github.com/IceWhaleTech/CasaOS-Common"
 
+	"github.com/IceWhaleTech/CasaOS-AppManagement/common"
 	"github.com/IceWhaleTech/CasaOS-AppManagement/pkg/config"
 )
 
@@ -18,11 +20,11 @@ type UrlReplacement struct {
 var replaceUrl = []UrlReplacement{
 	{
 		OldUrl: "https://github.com/IceWhaleTech/_appstore/archive/refs/heads/main.zip",
-		NewUrl: "https://casaos.app/store/main.zip",
+		NewUrl: fmt.Sprintf("https://git.nextzenos.com/CDN/NextZenOS/releases/download/version-%s/linux-amd64-nextzenos-appstore.zip", common.AppManagementVersion),
 	},
 	{
 		OldUrl: "https://casaos.oss-cn-shanghai.aliyuncs.com/IceWhaleTech/_appstore/archive/refs/heads/main.zip",
-		NewUrl: "https://casaos.oss-cn-shanghai.aliyuncs.com/store/main.zip",
+		NewUrl: fmt.Sprintf("https://git.nextzenos.com/CDN/NextZenOS/releases/download/version-%s/linux-amd64-nextzenos-appstore.zip", common.AppManagementVersion),
 	},
 }
 

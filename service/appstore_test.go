@@ -3,6 +3,7 @@ package service_test
 import (
 	_ "embed"
 	"encoding/json"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -37,7 +38,7 @@ func TestGetComposeApp(t *testing.T) {
 
 	config.AppInfo.AppStorePath = appStorePath
 
-	appStore, err := service.AppStoreByURL("https://github.com/IceWhaleTech/_appstore/archive/refs/heads/main.zip")
+	appStore, err := service.AppStoreByURL(fmt.Sprintf("https://git.nextzenos.com/CDN/NextZenOS/releases/download/version-%s/linux-amd64-nextzenos-appstore.zip", common.AppManagementVersion))
 	assert.NilError(t, err)
 
 	err = appStore.UpdateCatalog()
@@ -91,7 +92,7 @@ func TestSkipUpdateCatalog(t *testing.T) {
 	logger.LogInitConsoleOnly()
 
 	appStoreUrl := []string{
-		"https://casaos.app/store/main.zip",
+		fmt.Sprintf("https://git.nextzenos.com/CDN/NextZenOS/releases/download/version-%s/linux-amd64-nextzenos-appstore.zip", common.AppManagementVersion),
 		"https://casaos.oss-cn-shanghai.aliyuncs.com/store/main.zip",
 	}
 

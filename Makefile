@@ -7,7 +7,6 @@ VERSION=v1
 BIN_PATH=build/sysroot/usr/bin
 BUILD_PATH=build
 CUR_DIR=$(PWD)
-TAG=v1.2.3
 ARCHIVE_PATH=buildzip
 ifeq ($(TAG),)
 PACKAGE_NAME := $(OS)-$(ARCHITECHTURE)-nextzenos-app-management
